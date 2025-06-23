@@ -224,8 +224,8 @@ def load_metadata(data_path, wordsep, use_words=False):
     with open(os.path.join(data_path, filename), "r", encoding='utf-8') as fid:
         lines = (l.strip().split() for l in fid if l[0] != "#")
         for line in lines:
-            # Skip lines with insufficient fields
-            if len(line) < 10:  # Minimum for word ID, seg result, graylevel, components, 4 box values, tag, transcription
+            # Skip lines with fewer than 9 fields (need ID, seg, gray, components, 4 box, tag)
+            if len(line) < 9:
                 print(f"Skipping malformed line (insufficient fields): {' '.join(line)}")
                 continue
             
@@ -233,16 +233,22 @@ def load_metadata(data_path, wordsep, use_words=False):
             if use_words and line[1] == "err":
                 continue
             
-            # Skip lines with no transcription
-            if not line[9:]:  # Check if transcription (line[9:] onwards) is empty
-                print(f"Skipping line with no transcription: {' '.join(line)}")
+            # Validate components field (should be a small integer, e.g., 1-10)
+            try:
+                components = int(line[3])
+                if components < 1 or components > 10:  # Arbitrary max for sanity check
+                    print(f"Skipping line with invalid components value: {' '.join(line)}")
+                    continue
+            except ValueError:
+                print(f"Skipping line with non-numeric components: {' '.join(line)}")
                 continue
             
             # Extract text (transcription)
-            text = " ".join(line[9:])  # Use transcription starting from index 9
-            # Remove garbage tokens
+            if len(line) < 10 or not line[9:]:  # No transcription
+                print(f"Skipping line with no transcription: {' '.join(line)}")
+                continue
+            text = " ".join(line[9:])  # Transcription starts at index 9
             text = text.replace("#", "")
-            # Swap word sep from | to wordsep
             text = re.sub(r"\|+|\s", wordsep, text).strip(wordsep)
             
             # Extract keys
@@ -252,7 +258,6 @@ def load_metadata(data_path, wordsep, use_words=False):
             # Extract bounding box
             box_idx = 4 - use_words
             try:
-                # Validate bounding box fields are numeric
                 box_values = line[box_idx:box_idx + 4]
                 if len(box_values) != 4:
                     print(f"Skipping line with invalid bounding box length: {' '.join(line)}")

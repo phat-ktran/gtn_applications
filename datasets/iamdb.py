@@ -17,8 +17,8 @@ from torchvision import transforms
 
 
 SPLITS = {
-    "train": ["trainset"],
-    "validation": ["validationset1"],
+    "train": ["train"],
+    "validation": ["validation"],
     "test": ["validationset2", "testset"],
 }
 

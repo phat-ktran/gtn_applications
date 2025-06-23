@@ -18,6 +18,8 @@ build/
 develop-eggs/
 dist/
 downloads/
+# Dataset
+train_data/*
 eggs/
 .eggs/
 lib/

@@ -221,21 +221,48 @@ class Preprocessor:
 def load_metadata(data_path, wordsep, use_words=False):
     forms = collections.defaultdict(list)
     filename = "words.txt" if use_words else "lines.txt"
-    with open(os.path.join(data_path, filename), "r") as fid:
+    with open(os.path.join(data_path, filename), "r", encoding='utf-8') as fid:
         lines = (l.strip().split() for l in fid if l[0] != "#")
         for line in lines:
-            # skip word segmentation errors
+            # Skip lines with insufficient fields
+            if len(line) < 10:  # Minimum for word ID, seg result, graylevel, components, 4 box values, tag, transcription
+                print(f"Skipping malformed line (insufficient fields): {' '.join(line)}")
+                continue
+            
+            # Skip word segmentation errors when use_words=True
             if use_words and line[1] == "err":
                 continue
-            text = " ".join(line[9:])
-            # remove garbage tokens:
+            
+            # Skip lines with no transcription
+            if not line[9:]:  # Check if transcription (line[9:] onwards) is empty
+                print(f"Skipping line with no transcription: {' '.join(line)}")
+                continue
+            
+            # Extract text (transcription)
+            text = " ".join(line[9:])  # Use transcription starting from index 9
+            # Remove garbage tokens
             text = text.replace("#", "")
-            # swap word sep from | to wordsep
+            # Swap word sep from | to wordsep
             text = re.sub(r"\|+|\s", wordsep, text).strip(wordsep)
+            
+            # Extract keys
             form_key = "-".join(line[0].split("-")[:2])
             line_key = "-".join(line[0].split("-")[:3])
+            
+            # Extract bounding box
             box_idx = 4 - use_words
-            box = tuple(int(val) for val in line[box_idx : box_idx + 4])
+            try:
+                # Validate bounding box fields are numeric
+                box_values = line[box_idx:box_idx + 4]
+                if len(box_values) != 4:
+                    print(f"Skipping line with invalid bounding box length: {' '.join(line)}")
+                    continue
+                box = tuple(int(val) for val in box_values)
+            except ValueError as e:
+                print(f"Skipping line with non-numeric bounding box values: {' '.join(line)}")
+                continue
+            
+            # Append to forms
             forms[form_key].append(
                 {
                     "key": line_key,

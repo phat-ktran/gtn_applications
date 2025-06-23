@@ -221,53 +221,27 @@ class Preprocessor:
 def load_metadata(data_path, wordsep, use_words=False):
     forms = collections.defaultdict(list)
     filename = "words.txt" if use_words else "lines.txt"
-    with open(os.path.join(data_path, filename), "r", encoding='utf-8') as fid:
+    with open(os.path.join(data_path, filename), "r") as fid:
         lines = (l.strip().split() for l in fid if l[0] != "#")
         for line in lines:
-            # Skip lines with fewer than 9 fields (need ID, seg, gray, components, 4 box, tag)
-            if len(line) < 9:
-                print(f"Skipping malformed line (insufficient fields): {' '.join(line)}")
-                continue
-            
-            # Skip word segmentation errors when use_words=True
-            if use_words and line[1] == "err":
-                continue
-            
-            # Validate components field (should be a small integer, e.g., 1-10)
-            try:
-                components = int(line[3])
-                if components < 1 or components > 10:  # Arbitrary max for sanity check
-                    print(f"Skipping line with invalid components value: {' '.join(line)}")
+            if use_words:
+                if len(line) < 9 or line[1] == "err":
                     continue
+            else:
+                if len(line) < 8:
+                    continue
+            try:
+                box_start = 3 + use_words  # 4 for words (x at index 4), 3 for lines
+                box = tuple(int(val) for val in line[box_start : box_start + 4])
             except ValueError:
-                print(f"Skipping line with non-numeric components: {' '.join(line)}")
-                continue
-            
-            # Extract text (transcription)
-            if len(line) < 10 or not line[9:]:  # No transcription
-                print(f"Skipping line with no transcription: {' '.join(line)}")
-                continue
-            text = " ".join(line[9:])  # Transcription starts at index 9
+                continue  # Skip lines with non-integer box values
+            text = " ".join(line[8:])  # Transcription starts at index 8
+            # Remove garbage tokens
             text = text.replace("#", "")
+            # Swap word separators
             text = re.sub(r"\|+|\s", wordsep, text).strip(wordsep)
-            
-            # Extract keys
             form_key = "-".join(line[0].split("-")[:2])
             line_key = "-".join(line[0].split("-")[:3])
-            
-            # Extract bounding box
-            box_idx = 4 - use_words
-            try:
-                box_values = line[box_idx:box_idx + 4]
-                if len(box_values) != 4:
-                    print(f"Skipping line with invalid bounding box length: {' '.join(line)}")
-                    continue
-                box = tuple(int(val) for val in box_values)
-            except ValueError as e:
-                print(f"Skipping line with non-numeric bounding box values: {' '.join(line)}")
-                continue
-            
-            # Append to forms
             forms[form_key].append(
                 {
                     "key": line_key,

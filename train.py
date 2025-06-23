@@ -171,6 +171,7 @@ def train(world_rank, args):
     )
     trainset = dataset.Dataset(data_path, preprocessor, split="train", augment=True)
     valset = dataset.Dataset(data_path, preprocessor, split="validation")
+    print(len(trainset.sample_sizes()))
     train_loader = utils.data_loader(trainset, config, world_rank, args.world_size)
     val_loader = utils.data_loader(valset, config, world_rank, args.world_size)
 

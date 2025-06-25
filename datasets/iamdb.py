@@ -98,7 +98,7 @@ def load_image(example):
     width, height = img.size
 
     # Desired new height
-    new_height = 48
+    new_height = 16
 
     # Calculate new width maintaining aspect ratio
     if height == 0:

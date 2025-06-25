@@ -185,8 +185,8 @@ class Preprocessor:
         else:
             self.lexicon = None
 
-        self.graphemes_to_index = {t: i for i, t in enumerate(self.graphemes)}
-        self.tokens_to_index = {t: i for i, t in enumerate(self.tokens)}
+        self.graphemes_to_index = {t: i + 1 for i, t in enumerate(self.graphemes)}
+        self.tokens_to_index = {t: i + 1 for i, t in enumerate(self.tokens)}
         self.num_features = num_features
 
     @property

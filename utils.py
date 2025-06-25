@@ -275,8 +275,10 @@ def load_criterion(criterion_type, preprocessor, config):
         use_pt = config.get("use_pt", True)  # use pytorch implementation
         return ctc.CTC(num_tokens, use_pt), num_tokens + 1  # account for blank
     elif criterion_type == "stc":
-        return stc.STC(num_tokens), num_tokens + 1  # account for blank
-    elif criterion_type == "transducer":
+        blank = 0
+        p0, plast, thalf = config.get("p0"), config.get("plast"), config.get("thalf")
+        return stc.STC(blank, p0, plast, thalf), num_tokens + 1  # account for blank
+    elif criterion_type == "transducer":        
         blank = config.get("blank", "none")
         transitions = config.get("transitions", None)
         if transitions is not None:

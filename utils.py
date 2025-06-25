@@ -10,9 +10,7 @@ from dataclasses import dataclass
 import gtn
 import importlib
 import logging
-import numpy as np
 import os
-import struct
 import sys
 import time
 import torch
@@ -94,28 +92,21 @@ class BatchSortedSampler(torch.utils.data.Sampler):
 
 #     return batch_inputs, targets
 
+
 def padding_collate(batch):
-    # Assume batch is a list of (input, target) tuples
     inputs, targets = zip(*batch)
     batch_size = len(inputs)
-    
-    # Determine maximum width in the batch
-    max_width = max(ip.shape[2] for ip in inputs)
-    channels = inputs[0].shape[0]  # e.g., 3
-    height = inputs[0].shape[1]    # e.g., 64
-    
-    # Initialize batched tensor with zeros (padding)
-    batch_inputs = torch.zeros(batch_size, channels, height, max_width)
-    
-    # Assign each input to the batch tensor
-    for e, ip in enumerate(inputs):
-        w = ip.shape[2]
-        batch_inputs[e, :, :, :w] = ip
-    
-    # Stack targets if needed (adjust based on your target format)
-    batch_targets = torch.stack(targets)  # Example, modify as per your data
-    
+    channels, height, width = inputs[0].shape  # e.g., [1, 64, 880]
+    batch_inputs = torch.stack(inputs)  # No padding needed, all [channels, 64, 880]
+    torch.full((batch_size,), width, dtype=torch.long)  # All 880
+    max_target_length = max(t.shape[0] for t in targets)
+    batch_targets = torch.zeros(batch_size, max_target_length, dtype=torch.long)
+    torch.tensor([t.shape[0] for t in targets], dtype=torch.long)
+    for e, t in enumerate(targets):
+        length = t.shape[0]
+        batch_targets[e, :length] = t
     return batch_inputs, batch_targets
+
 
 @dataclass
 class Meters:

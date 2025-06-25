@@ -11,7 +11,6 @@ import multiprocessing as mp
 import os
 import PIL.Image
 import random
-import re
 import torch
 from torchvision import transforms
 
@@ -25,9 +24,7 @@ SPLITS = {
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_path, preprocessor, split, augment=False):
-        forms = load_metadata(
-            data_path, use_words=preprocessor.use_words
-        )
+        forms = load_metadata(data_path, use_words=preprocessor.use_words)
 
         # Get split keys:
         splits = SPLITS.get(split, None)
@@ -41,7 +38,7 @@ class Dataset(torch.utils.data.Dataset):
                 split_keys.extend((l.strip() for l in fid))
 
         self.preprocessor = preprocessor
-        
+
         # setup image transforms:
         self.transforms = []
         if augment:
@@ -97,19 +94,33 @@ def load_image(example):
     # Get original dimensions
     width, height = img.size
 
-    # Desired new height
+    # Desired dimensions
     new_height = 64
+    target_width = 880
 
     # Calculate new width maintaining aspect ratio
     if height == 0:
         # Avoid division by zero, though unlikely for an image
-        new_width = width 
+        new_width = width
     else:
         aspect_ratio = float(width) / height
         new_width = int(aspect_ratio * new_height)
 
-    # Resize the image to the new dimensions
-    img = img.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
+    if new_width >= target_width:
+        # Resize directly to [880, 64], ignoring aspect ratio
+        img = img.resize((target_width, new_height), PIL.Image.Resampling.LANCZOS)
+    else:
+        # Resize to [new_width, 64], preserving aspect ratio
+        img = img.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
+
+        # Create a new blank image of size [880, 64] (white background)
+        padded_img = PIL.Image.new(
+            img.mode, (target_width, new_height), color=(255, 255, 255)
+        )
+
+        # Paste the resized image at the left (offset 0, 0)
+        padded_img.paste(img, (0, 0))
+        img = padded_img
 
     return img
 
@@ -240,10 +251,10 @@ def load_metadata(data_path, use_words=False):
         for line in fid:
             parts = line.strip().split("\t")
             word_id = parts[0]
-            text_label = parts[-1] # The actual word is the last part
+            text_label = parts[-1]  # The actual word is the last part
             path = os.path.join(data_path, word_id)
             form_key = word_id.split("/")[0]
-           
+
             forms[form_key].append(
                 {
                     "key": word_id,
@@ -294,6 +305,7 @@ if __name__ == "__main__":
 
     if not args.compute_stats:
         import sys
+
         print("here")
         sys.exit(0)
 

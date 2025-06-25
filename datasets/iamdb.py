@@ -19,14 +19,14 @@ from torchvision import transforms
 SPLITS = {
     "train": ["train"],
     "validation": ["validation"],
-    "test": ["validationset2", "testset"],
+    "test": ["validation"],
 }
 
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_path, preprocessor, split, augment=False):
         forms = load_metadata(
-            data_path, preprocessor.wordsep, use_words=preprocessor.use_words
+            data_path, use_words=preprocessor.use_words
         )
 
         # Get split keys:
@@ -41,7 +41,7 @@ class Dataset(torch.utils.data.Dataset):
                 split_keys.extend((l.strip() for l in fid))
 
         self.preprocessor = preprocessor
-
+        
         # setup image transforms:
         self.transforms = []
         if augment:
@@ -67,8 +67,7 @@ class Dataset(torch.utils.data.Dataset):
             for example in examples:
                 if example["key"] not in split_keys:
                     continue
-                img_file = os.path.join(data_path, f"{key}.png")
-                images.append((img_file, example["box"], preprocessor.num_features))
+                images.append((example["path"], preprocessor.num_features))
                 text.append(example["text"])
         with mp.Pool(processes=16) as pool:
             images = pool.map(load_image, images)
@@ -92,11 +91,27 @@ class Dataset(torch.utils.data.Dataset):
 
 
 def load_image(example):
-    img_file, box, height = example
+    img_file, _ = example
     img = PIL.Image.open(img_file)
-    x, y, w, h = box
-    size = (height, int((height / h) * w))
-    return transforms.functional.resized_crop(img, y, x, h, w, size)
+
+    # Get original dimensions
+    width, height = img.size
+
+    # Desired new height
+    new_height = 48
+
+    # Calculate new width maintaining aspect ratio
+    if height == 0:
+        # Avoid division by zero, though unlikely for an image
+        new_width = width 
+    else:
+        aspect_ratio = float(width) / height
+        new_width = int(aspect_ratio * new_height)
+
+    # Resize the image to the new dimensions
+    img = img.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
+
+    return img
 
 
 class RandomResizeCrop:
@@ -151,7 +166,7 @@ class Preprocessor:
         self._use_words = use_words
         self._prepend_wordsep = prepend_wordsep
 
-        forms = load_metadata(data_path, self.wordsep, use_words=use_words)
+        forms = load_metadata(data_path, use_words=use_words)
 
         # Load the set of graphemes:
         graphemes = set()
@@ -218,35 +233,32 @@ class Preprocessor:
         return "".join(indices).strip(self.wordsep)
 
 
-def load_metadata(data_path, wordsep, use_words=False):
+def load_metadata(data_path, use_words=False):
     forms = collections.defaultdict(list)
-    filename = "words.txt" if use_words else "lines.txt"
+    filename = "words.txt"
     with open(os.path.join(data_path, filename), "r") as fid:
-        lines = (l.strip().split() for l in fid if l[0] != "#")
-        for line in lines:
-            if use_words:
-                if len(line) < 9 or line[1] == "err":
-                    continue
-            else:
-                if len(line) < 8:
-                    continue
-            try:
-                box_start = 3 + use_words  # 4 for words (x at index 4), 3 for lines
-                box = tuple(int(val) for val in line[box_start : box_start + 4])
-            except ValueError:
-                continue  # Skip lines with non-integer box values
-            text = " ".join(line[8:])  # Transcription starts at index 8
-            # Remove garbage tokens
-            text = text.replace("#", "")
-            # Swap word separators
-            text = re.sub(r"\|+|\s", wordsep, text).strip(wordsep)
-            form_key = "-".join(line[0].split("-")[:2])
-            line_key = "-".join(line[0].split("-")[:3])
+        for line in fid:
+            if line.startswith("#"):  # Skip comment lines
+                continue
+            
+            parts = line.strip().split()
+            if len(parts) < 9: # Ensure the parts has enough parts
+                continue
+                
+            word_id = parts[0]
+            segmentation_status = parts[1] # ok or err
+            text_label = parts[-1] # The actual word is the last part
+            id_parts = word_id.split('-')
+            path = os.path.join(data_path, "words", id_parts[0], f"{id_parts[0]}-{id_parts[1]}", f"{word_id}.png")
+            form_key = f"{id_parts[0]}-{id_parts[1]}"
+            if len(id_parts) < 2:
+                continue
+            line_key = "-".join(id_parts[:])
             forms[form_key].append(
                 {
                     "key": line_key,
-                    "box": box,
-                    "text": text,
+                    "path": path,
+                    "text": text_label,
                 }
             )
     return forms
@@ -286,11 +298,9 @@ if __name__ == "__main__":
         with open(args.save_tokens, "w") as fid:
             fid.write("\n".join(preprocessor.tokens))
     valset = Dataset(args.data_path, preprocessor, split="validation")
-    testset = Dataset(args.data_path, preprocessor, split="test")
     print("Number of examples per dataset:")
     print(f"Training: {len(trainset)}")
     print(f"Validation: {len(valset)}")
-    print(f"Test: {len(testset)}")
 
     if not args.compute_stats:
         import sys

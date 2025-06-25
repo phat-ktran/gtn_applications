@@ -9,7 +9,7 @@ def extract_document_ids(file_path: str) -> Set[str]:
         for line in f:
             if line.strip() and not line.startswith('#'):
                 # Extract document ID (e.g., 'a01-000u' from 'a01-000u-00-00')
-                doc_id = line.split()[0].split('-')[0] + '-' + line.split()[0].split('-')[1]
+                doc_id = line.split()[0]
                 doc_ids.add(doc_id)
     return doc_ids
 
@@ -36,7 +36,7 @@ def write_id_files(train_ids: List[str], val_ids: List[str], output_dir: str):
 
 def main():
     # Input file path
-    input_file = './train_data/words.txt'
+    input_file = './train_data/iamdb/words.txt'
     # Output directory for train/val ID files
     output_dir = './train_data/'
     

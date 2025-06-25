@@ -173,51 +173,43 @@ class STC(torch.nn.Module):
 
     def forward(self, inputs, targets):
         """
-        Computes STC loss for the given input and partialy labeled target
-
+        Computes STC loss for the given input and partially labeled target
+    
         Args:
             inputs: Tensor of size (T, B, C)
-                T - # time steps, B - batch size, C - alphabet size (including blank)
-                The logarithmized probabilities of the outputs (e.g. obtained with torch.nn.functional.log_softmax())
-            targets: list of size [B]
-                List of target sequences for each batch
-
-        Returns:
-            Tensor of size 1
-            Mean STC loss of all samples in the batch
+                Logarithmized probabilities (e.g., from torch.nn.functional.log_softmax())
+            targets: Tensor of size (B, max_len) or list of size [B]
+                Padded tensor or list of target sequences
         """
-
         if self.training:
             self.nstep += 1
-
+    
         prob = self.plast + (self.p0 - self.plast) * math.exp(
             -self.nstep * math.log(2) / self.thalf
         )
-        # (T, B, C) --> (B, T, C)
-        log_probs = inputs.permute(1, 0, 2)
-        
-        print(targets)
-
+        log_probs = inputs.permute(1, 0, 2)  # (T, B, C) --> (B, T, C)
+    
+        # Convert tensor to list of lists if necessary
+        if isinstance(targets, torch.Tensor):
+            targets = [target[target != 0].tolist() for target in targets]
+    
         B, T, C = log_probs.shape
         with torch.set_grad_enabled(log_probs.requires_grad):
             # <star>
             lse = torch.logsumexp(log_probs[:, :, 1:], 2, keepdim=True)
-
-            # select only the tokens present in current batch
+    
+            # Select tokens present in current batch
             select_idx = [STC_BLANK_IDX] + list(
-                set([t.item() for target in targets for t in target])
+                set([t for target in targets for t in target])
             )
-            target_map = {}
-            for i, t in enumerate(select_idx):
-                target_map[t] = i
-
+            target_map = {t: i for i, t in enumerate(select_idx)}
+    
             select_idx = torch.IntTensor(select_idx).to(log_probs.device)
             log_probs = log_probs.index_select(2, select_idx)
-            targets = [[target_map[t.item()] for t in target] for target in targets]
-
-            # <star>\tokens for all tokens present in current batch
+            targets = [[target_map[t] for t in target] for target in targets]
+    
+            # <star>\tokens
             neglse = STC.logsubexp(lse, log_probs[:, :, 1:])
-
-            # concatenate (tokens, <star>, <star>\tokens)
             log_probs = torch.cat([log_probs, lse, neglse], dim=2)
+    
         return STCLoss(log_probs, targets, prob, self.reduction)

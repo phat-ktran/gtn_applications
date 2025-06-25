@@ -262,7 +262,8 @@ def train(world_rank, args):
             optimizer.zero_grad()
             outputs = model(inputs.to(device))
             timers.stop("model_fwd").start("crit_fwd")
-            loss = criterion(outputs, targets)
+            targets_list = [target[target != 0].tolist() for target in targets]
+            loss = criterion(outputs, targets_list)
             timers.stop("crit_fwd").start("bwd")
             loss.backward()
             timers.stop("bwd").start("optim")

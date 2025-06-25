@@ -195,6 +195,8 @@ class STC(torch.nn.Module):
         )
         # (T, B, C) --> (B, T, C)
         log_probs = inputs.permute(1, 0, 2)
+        
+        print(targets)
 
         B, T, C = log_probs.shape
         with torch.set_grad_enabled(log_probs.requires_grad):
@@ -203,7 +205,7 @@ class STC(torch.nn.Module):
 
             # select only the tokens present in current batch
             select_idx = [STC_BLANK_IDX] + list(
-                set([t for target in targets for t in target])
+                set([t.item() for target in targets for t in target])
             )
             target_map = {}
             for i, t in enumerate(select_idx):

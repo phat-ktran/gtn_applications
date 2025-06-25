@@ -89,39 +89,22 @@ class Dataset(torch.utils.data.Dataset):
 
 def load_image(example):
     img_file, _ = example
-    img = PIL.Image.open(img_file)
-
-    # Get original dimensions
+    img = PIL.Image.open(img_file).convert('RGB')  # Ensure RGB mode
     width, height = img.size
-
-    # Desired dimensions
     new_height = 64
     target_width = 880
-
-    # Calculate new width maintaining aspect ratio
     if height == 0:
-        # Avoid division by zero, though unlikely for an image
         new_width = width
     else:
         aspect_ratio = float(width) / height
         new_width = int(aspect_ratio * new_height)
-
     if new_width >= target_width:
-        # Resize directly to [880, 64], ignoring aspect ratio
         img = img.resize((target_width, new_height), PIL.Image.Resampling.LANCZOS)
     else:
-        # Resize to [new_width, 64], preserving aspect ratio
         img = img.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
-
-        # Create a new blank image of size [880, 64] (white background)
-        padded_img = PIL.Image.new(
-            img.mode, (target_width, new_height), color=(255, 255, 255)
-        )
-
-        # Paste the resized image at the left (offset 0, 0)
+        padded_img = PIL.Image.new('RGB', (target_width, new_height), color=(255, 255, 255))
         padded_img.paste(img, (0, 0))
         img = padded_img
-
     return img
 
 

@@ -104,7 +104,7 @@ class TDS2d(torch.nn.Module):
 
     def forward(self, inputs):
         # inputs shape: [B, H, W]
-        B, H, W = inputs.shape
+        B, _, H, W = inputs.shape
         outputs = inputs.reshape(B, self.in_channels, H // self.in_channels, W)
         outputs = self.tds(outputs)
 

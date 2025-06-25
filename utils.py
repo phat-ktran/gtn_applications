@@ -14,7 +14,7 @@ import os
 import sys
 import time
 import torch
-from criterions import ctc, asg, transducer
+from criterions import ctc, asg, stc, transducer
 from models import rnn, tds, tds2d
 
 
@@ -274,6 +274,8 @@ def load_criterion(criterion_type, preprocessor, config):
     elif criterion_type == "ctc":
         use_pt = config.get("use_pt", True)  # use pytorch implementation
         return ctc.CTC(num_tokens, use_pt), num_tokens + 1  # account for blank
+    elif criterion_type == "stc":
+        return stc.STC(num_tokens), num_tokens + 1  # account for blank
     elif criterion_type == "transducer":
         blank = config.get("blank", "none")
         transitions = config.get("transitions", None)

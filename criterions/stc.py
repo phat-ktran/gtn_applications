@@ -211,7 +211,7 @@ class STC(torch.nn.Module):
 
             select_idx = torch.IntTensor(select_idx).to(log_probs.device)
             log_probs = log_probs.index_select(2, select_idx)
-            targets = [[target_map[t] for t in target] for target in targets]
+            targets = [[target_map[t.item()] for t in target] for target in targets]
 
             # <star>\tokens for all tokens present in current batch
             neglse = STC.logsubexp(lse, log_probs[:, :, 1:])

@@ -262,7 +262,10 @@ def train(world_rank, args):
             optimizer.zero_grad()
             outputs = model(inputs.to(device))
             timers.stop("model_fwd").start("crit_fwd")
-            targets_list = [target[target != 0].tolist() for target in targets]
+            if isinstance(targets, torch.Tensor):
+                targets_list = [target[target != 0].tolist() for target in targets]
+            else:
+                targets_list = targets
             loss = criterion(outputs, targets_list)
             timers.stop("crit_fwd").start("bwd")
             loss.backward()

@@ -7,9 +7,8 @@ def extract_document_ids(file_path: str) -> Set[str]:
     doc_ids = set()
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
-            if line.strip() and not line.startswith('#'):
-                # Extract document ID (e.g., 'a01-000u' from 'a01-000u-00-00')
-                doc_id = line.split()[0]
+            if line.strip():
+                doc_id = line.split("\t")[0]
                 doc_ids.add(doc_id)
     return doc_ids
 
@@ -34,24 +33,27 @@ def write_id_files(train_ids: List[str], val_ids: List[str], output_dir: str):
         for doc_id in sorted(val_ids):
             f.write(f"{doc_id}\n")
 
+
+def write_id_file(ids: List[str], output_dir: str):
+    """Write train and validation IDs to separate text files."""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    with open(os.path.join(output_dir, 'validate.txt'), 'w', encoding='utf-8') as f:
+        for doc_id in sorted(ids):
+            f.write(f"{doc_id}\n")
+
 def main():
     # Input file path
-    input_file = './train_data/iamdb/words.txt'
+    input_file = './train_data/nomna/nomna-validate.txt'
     # Output directory for train/val ID files
     output_dir = './train_data/'
     
     # Extract unique document IDs
     doc_ids = list(extract_document_ids(input_file))
     print(f"Found {len(doc_ids)} unique document IDs")
-    
-    # Split into train and validation
-    train_ids, val_ids = split_train_val(doc_ids)
-    print(f"Train set: {len(train_ids)} IDs")
-    print(f"Validation set: {len(val_ids)} IDs")
-    
+
     # Write IDs to files
-    write_id_files(train_ids, val_ids, output_dir)
-    print(f"Train and validation ID files written to {output_dir}")
+    write_id_file(doc_ids, output_dir)
 
 if __name__ == "__main__":
     main()

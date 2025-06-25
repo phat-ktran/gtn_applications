@@ -82,18 +82,40 @@ class BatchSortedSampler(torch.utils.data.Sampler):
         return self.length
 
 
-def padding_collate(samples):
-    inputs, targets = zip(*samples)
+# def padding_collate(samples):
+#     inputs, targets = zip(*samples)
 
-    # collate inputs:
-    h = inputs[0].shape[1]
-    max_input_len = max(ip.shape[2] for ip in inputs)
-    batch_inputs = torch.zeros((len(inputs), inputs[0].shape[1], max_input_len))
+#     # collate inputs:
+#     h = inputs[0].shape[1]
+#     max_input_len = max(ip.shape[2] for ip in inputs)
+#     batch_inputs = torch.zeros((len(inputs), inputs[0].shape[1], max_input_len))
+#     for e, ip in enumerate(inputs):
+#         batch_inputs[e, :, : ip.shape[2]] = ip
+
+#     return batch_inputs, targets
+
+def padding_collate(batch):
+    # Assume batch is a list of (input, target) tuples
+    inputs, targets = zip(*batch)
+    batch_size = len(inputs)
+    
+    # Determine maximum width in the batch
+    max_width = max(ip.shape[2] for ip in inputs)
+    channels = inputs[0].shape[0]  # e.g., 3
+    height = inputs[0].shape[1]    # e.g., 64
+    
+    # Initialize batched tensor with zeros (padding)
+    batch_inputs = torch.zeros(batch_size, channels, height, max_width)
+    
+    # Assign each input to the batch tensor
     for e, ip in enumerate(inputs):
-        batch_inputs[e, :, : ip.shape[2]] = ip
-
-    return batch_inputs, targets
-
+        w = ip.shape[2]
+        batch_inputs[e, :, :, :w] = ip
+    
+    # Stack targets if needed (adjust based on your target format)
+    batch_targets = torch.stack(targets)  # Example, modify as per your data
+    
+    return batch_inputs, batch_targets
 
 @dataclass
 class Meters:

@@ -67,7 +67,7 @@ class TDS2d(torch.nn.Module):
         tds_groups,
         kernel_size,
         dropout,
-        in_channels=1,
+        in_channels=3,
     ):
         super(TDS2d, self).__init__()
         # downsample layer -> TDS2d group -> ... -> Linear output layer

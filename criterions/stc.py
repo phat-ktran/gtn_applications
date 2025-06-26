@@ -68,6 +68,13 @@ class STCLossFunction(torch.autograd.Function):
         B, T, Cstar = inputs.shape
         losses, scales, emissions_graphs = [None] * B, [None] * B, [None] * B
         C = Cstar // 2
+
+        # Logging breakpoint
+        print("Entering forward method of STCLossFunction")
+        print(f"Inputs shape: {inputs.shape}")
+        print(f"Targets: {targets}")
+        print(f"Probability: {prob}")
+        print(f"Reduction method: {reduction}")
         
         def process(b):
             # create emission graph
@@ -97,8 +104,11 @@ class STCLossFunction(torch.autograd.Function):
             scales[b] = scale
             emissions_graphs[b] = g_emissions
         
+        
+        print("Processing batch...")
         gtn.parallel_for(process, range(B))
 
+        print("Finished processing batch.")
         ctx.auxiliary_data = (losses, scales, emissions_graphs, inputs.shape)
         loss = torch.tensor([losses[b].item() * scales[b] for b in range(B)])
         return torch.mean(loss.cuda() if inputs.is_cuda else loss)

@@ -75,7 +75,7 @@ class STCLossFunction(torch.autograd.Function):
         print(f"Targets: {targets}")
         print(f"Probability: {prob}")
         print(f"Reduction method: {reduction}")
-        
+
         def process(b):
             # create emission graph
             g_emissions = gtn.linear_graph(
@@ -103,8 +103,7 @@ class STCLossFunction(torch.autograd.Function):
             losses[b] = g_loss
             scales[b] = scale
             emissions_graphs[b] = g_emissions
-        
-        
+
         print("Processing batch...")
         gtn.parallel_for(process, range(B))
 
@@ -118,13 +117,13 @@ class STCLossFunction(torch.autograd.Function):
         losses, scales, emissions_graphs, in_shape = ctx.auxiliary_data
         B, T, C = in_shape
         input_grad = torch.empty((B, T, C))
-        
+
         print("Backward pass initiated.")
         print(f"Batch size (B): {B}")
         print(f"Time steps (T): {T}")
         print(f"Alphabet size (C): {C}")
         print(f"Gradient output shape: {grad_output.shape}")
-        
+
         def process(b):
             print(f"Processing batch element {b} during backward pass.")
             gtn.backward(losses[b], False)
@@ -132,7 +131,7 @@ class STCLossFunction(torch.autograd.Function):
             emissions = emissions_graphs[b]
             grad = emissions.grad().weights_to_numpy()
             input_grad[b] = torch.from_numpy(grad).view(1, T, C) * scales[b]
-            
+
         print("Processing backward pass for each batch element...")
         # Using a for loop instead of gtn.parallel_for
         # gtn.parallel_for(process, range(B))
@@ -232,7 +231,7 @@ class STC(torch.nn.Module):
             target_map = {}
             for i, t in enumerate(select_idx):
                 target_map[t] = i
-                        
+
             select_idx = torch.IntTensor(select_idx).to(log_probs.device)
             log_probs = log_probs.index_select(2, select_idx)
             targets = [[target_map[t.item()] for t in target] for target in targets]
@@ -248,3 +247,34 @@ class STC(torch.nn.Module):
             log_probs = log_probs.permute(1, 0, 2)
             # print(f"Shape after concatenation (new log_probs): {log_probs.shape}")
         return STCLoss(log_probs, targets, prob, self.reduction)
+
+    def viterbi(self, inputs):
+        """
+        Decodes the most likely sequence of tokens using the Viterbi algorithm.
+
+        Args:
+            inputs: Tensor of size (T, B, C)
+                T - # time steps, B - batch size, C - alphabet size (including blank)
+                The logarithmized probabilities of the outputs (e.g. obtained with torch.nn.functional.log_softmax())
+
+        Returns:
+            List of decoded sequences for each batch element
+        """
+        # (T, B, C) --> (B, T, C)
+        log_probs = inputs.permute(1, 0, 2)
+        B, T, C = log_probs.shape
+        decoded_sequences = []
+
+        for b in range(B):
+            sequence = []
+            prev_token = None
+            for t in range(T):
+                # Find the token with the highest probability at time step t
+                token = torch.argmax(log_probs[b, t]).item()
+                # Avoid consecutive duplicate tokens and skip blank tokens
+                if token != prev_token and token != STC_BLANK_IDX:
+                    sequence.append(token)
+                prev_token = token
+            decoded_sequences.append(sequence)
+
+        return decoded_sequences

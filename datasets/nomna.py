@@ -169,6 +169,7 @@ class Preprocessor:
             for line in form:
                 graphemes.update(line["text"])
         self.graphemes = sorted(graphemes)
+        self.graphemes.insert(0, "BLANK")
 
         # Build the token-to-index and index-to-token maps:
         if tokens_path is not None:
@@ -185,10 +186,8 @@ class Preprocessor:
                 self.lexicon = lexicon
         else:
             self.lexicon = None
-        self.graphemes_to_index = { "<BLANK>": 0 }
-        self.tokens_to_index = { "<BLANK>": 0 }
-        self.graphemes_to_index.update({t: i + 1 for i, t in enumerate(self.graphemes)})
-        self.tokens_to_index.update({t: i + 1 for i, t in enumerate(self.tokens)})
+        self.graphemes_to_index = {t: i for i, t in enumerate(self.graphemes)}
+        self.tokens_to_index = {t: i for i, t in enumerate(self.tokens)}
         self.num_features = num_features
 
     @property

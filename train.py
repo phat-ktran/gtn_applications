@@ -282,9 +282,6 @@ def train(world_rank, args):
             meters.num_tokens += n_tokens
             meters.edit_distance_words += words_dist
             meters.num_words += n_words
-            logging.info(
-                f"Batch processed: Loss={loss.item():.4f}, TokensDist={tokens_dist}, WordsDist={words_dist}"
-            )
             timers.stop("metrics").start("ds_fetch")
         timers.stop("ds_fetch").stop("train_total")
         epoch_time = time.time() - start_time

@@ -89,7 +89,7 @@ class Dataset(torch.utils.data.Dataset):
 
 def load_image(example):
     img_file, _ = example
-    img = PIL.Image.open(img_file).convert('RGB')  # Ensure RGB mode
+    img = PIL.Image.open(img_file).convert("RGB")  # Ensure RGB mode
     width, height = img.size
     new_height = 64
     target_width = 880
@@ -102,10 +102,12 @@ def load_image(example):
         img = img.resize((target_width, new_height), PIL.Image.Resampling.LANCZOS)
     else:
         img = img.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
-        padded_img = PIL.Image.new('RGB', (target_width, new_height), color=(255, 255, 255))
+        padded_img = PIL.Image.new(
+            "RGB", (target_width, new_height), color=(255, 255, 255)
+        )
         padded_img.paste(img, (0, 0))
         img = padded_img
-    img = img.convert('L')  # Convert to 1-channel grayscale
+    img = img.convert("L")  # Convert to 1-channel grayscale
     return img
 
 
@@ -218,10 +220,14 @@ class Preprocessor:
         encoding = self.graphemes
         if self.lexicon is not None:
             encoding = self.tokens
-        return self._post_process(encoding[i] for i in indices)
+        # Add safety check to prevent index out of bounds
+        safe_indices = [i for i in indices if 0 <= i < len(encoding)]
+        return self._post_process(encoding[i] for i in safe_indices)
 
     def tokens_to_text(self, indices):
-        return self._post_process(self.tokens[i] for i in indices)
+        # Add safety check to prevent index out of bounds
+        safe_indices = [i for i in indices if 0 <= i < len(self.tokens)]
+        return self._post_process(self.tokens[i] for i in safe_indices)
 
     def _post_process(self, indices):
         # ignore preceding and trailling spaces

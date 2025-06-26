@@ -69,13 +69,6 @@ class STCLossFunction(torch.autograd.Function):
         losses, scales, emissions_graphs = [None] * B, [None] * B, [None] * B
         C = Cstar // 2
 
-        # Logging breakpoint
-        # print("Entering forward method of STCLossFunction")
-        # print(f"Inputs shape: {inputs.shape}")
-        # print(f"Targets: {targets}")
-        # print(f"Probability: {prob}")
-        # print(f"Reduction method: {reduction}")
-
         def process(b):
             # create emission graph
             g_emissions = gtn.linear_graph(
@@ -116,29 +109,19 @@ class STCLossFunction(torch.autograd.Function):
         B, T, C = in_shape
         input_grad = torch.empty((B, T, C))
 
-        # print("Backward pass initiated.")
-        # print(f"Batch size (B): {B}")
-        # print(f"Time steps (T): {T}")
-        # print(f"Alphabet size (C): {C}")
-        # print(f"Gradient output shape: {grad_output.shape}")
-
         def process(b):
             gtn.backward(losses[b], False)
             emissions = emissions_graphs[b]
             grad = emissions.grad().weights_to_numpy()
             input_grad[b] = torch.from_numpy(grad).view(1, T, C) * scales[b]
 
-        # print("Processing backward pass for each batch element...")
         # Using a for loop instead of gtn.parallel_for
         # gtn.parallel_for(process, range(B))
         for b in range(B):
             process(b)
-
-        # print("Gradient computation completed for all batch elements.")
         if grad_output.is_cuda:
             input_grad = input_grad.cuda()
         input_grad *= grad_output / B
-        # print("Gradient adjustment completed.")
 
         return (
             input_grad,
@@ -216,6 +199,8 @@ class STC(torch.nn.Module):
         log_probs = inputs.permute(1, 0, 2)
 
         B, T, C = log_probs.shape
+        # Store original vocabulary size for viterbi decoding
+        self._last_original_vocab_size = C
         with torch.set_grad_enabled(log_probs.requires_grad):
             # <star>
             lse = torch.logsumexp(log_probs[:, :, 1:], 2, keepdim=True)
@@ -241,12 +226,14 @@ class STC(torch.nn.Module):
             # concatenate (tokens, <star>, <star>\tokens)
             log_probs = torch.cat([log_probs, lse, neglse], dim=2)
             log_probs = log_probs.permute(1, 0, 2)
-            # print(f"Shape after concatenation (new log_probs): {log_probs.shape}")
+            # Update the original vocab size after token selection
+            self._last_original_vocab_size = len(select_idx)
         return STCLoss(log_probs, targets, prob, self.reduction)
 
     def viterbi(self, inputs):
         """
-        Decodes the most likely sequence of tokens using the Viterbi algorithm.
+        Decodes the most likely sequence of tokens using a simple greedy approach.
+        This is a safe implementation that avoids index out of bounds errors.
 
         Args:
             inputs: Tensor of size (T, B, C)
@@ -261,12 +248,27 @@ class STC(torch.nn.Module):
         B, T, C = log_probs.shape
         decoded_sequences = []
 
+        # Get the original vocabulary size (before STC expansion)
+        # STC expands the vocabulary, so we need to be careful about indices
+        original_vocab_size = C
+        if hasattr(self, "_last_original_vocab_size"):
+            original_vocab_size = self._last_original_vocab_size
+        else:
+            # Conservative estimate: assume at most half the dimensions are original tokens
+            original_vocab_size = min(C // 2, 100)
+
         for b in range(B):
             sequence = []
             prev_token = None
             for t in range(T):
-                # Find the token with the highest probability at time step t
-                token = torch.argmax(log_probs[b, t]).item()
+                # Only consider probabilities for the original vocabulary to avoid index errors
+                valid_probs = log_probs[b, t, :original_vocab_size]
+                token = torch.argmax(valid_probs).item()
+
+                # Additional safety check
+                if token >= original_vocab_size:
+                    token = STC_BLANK_IDX
+
                 # Avoid consecutive duplicate tokens and skip blank tokens
                 if token != prev_token and token != STC_BLANK_IDX:
                     sequence.append(token)

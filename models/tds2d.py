@@ -45,7 +45,7 @@ class TDSBlock2d(torch.nn.Module):
         )
 
     def forward(self, inputs):
-        # CMS - inputs shape: [B, CD, H, W]
+        # inputs shape: [B, CD, H, W]
         B, CD, H, W = inputs.shape
         C, D = self.in_channels, self.img_depth
         outputs = self.conv(inputs.view(B, C, D, H, W)).view(B, CD, H, W) + inputs
@@ -54,8 +54,9 @@ class TDSBlock2d(torch.nn.Module):
         outputs = self.fc(outputs.transpose(1, 3)).transpose(1, 3) + outputs
         outputs = self.instance_norms[1](outputs)
 
-        # CMS - outputs shape: [B, CD, H, W]
+        # outputs shape: [B, CD, H, W]
         return outputs
+
 
 class TDS2d(torch.nn.Module):
     def __init__(
@@ -66,9 +67,10 @@ class TDS2d(torch.nn.Module):
         tds_groups,
         kernel_size,
         dropout,
-        in_channels=3,
+        in_channels=1,
     ):
         super(TDS2d, self).__init__()
+        # downsample layer -> TDS2d group -> ... -> Linear output layer
         self.in_channels = in_channels
         modules = []
         stride_h = np.prod([grp["stride"][0] for grp in tds_groups])
@@ -76,6 +78,7 @@ class TDS2d(torch.nn.Module):
             input_size % stride_h == 0
         ), f"Image height not divisible by total stride {stride_h}."
         for tds_group in tds_groups:
+            # add downsample layer:
             out_channels = depth * tds_group["channels"]
             modules.extend(
                 [
@@ -100,12 +103,16 @@ class TDS2d(torch.nn.Module):
         self.linear = torch.nn.Linear(in_channels * input_size // stride_h, output_size)
 
     def forward(self, inputs):
-        # CMS - inputs shape: [B, C, H, W]
-        outputs = self.tds(inputs)
-        # CMS - outputs shape: [B, C', H', W]
-        B, C_prime, H_prime, W = outputs.shape
-        outputs = outputs.reshape(B, C_prime * H_prime, W)
-        # CMS - outputs shape: [B, W, output_size]
+        # inputs shape: [B, H, W]
+        B, H, W = inputs.shape
+        outputs = inputs.reshape(B, self.in_channels, H // self.in_channels, W)
+        outputs = self.tds(outputs)
+
+        # outputs shape: [B, C, H, W]
+        B, C, H, W = outputs.shape
+        outputs = outputs.reshape(B, C * H, W)
+
+        # outputs shape: [B, W, output_size]
         return self.linear(outputs.permute(0, 2, 1))
 
 

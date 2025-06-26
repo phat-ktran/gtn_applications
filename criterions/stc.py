@@ -218,11 +218,12 @@ class STC(torch.nn.Module):
 
             # <star>\tokens for all tokens present in current batch
             neglse = STC.logsubexp(lse, log_probs[:, :, 1:])
-            print(f"Shape before concatenation:")
-            print(f"  log_probs: {log_probs.shape}")
-            print(f"  lse: {lse.shape}")
-            print(f"  neglse: {neglse.shape}")
+            # print(f"Shape before concatenation:")
+            # print(f"  log_probs: {log_probs.shape}")
+            # print(f"  lse: {lse.shape}")
+            # print(f"  neglse: {neglse.shape}")
             # concatenate (tokens, <star>, <star>\tokens)
             log_probs = torch.cat([log_probs, lse, neglse], dim=2)
-            print(f"Shape after concatenation (new log_probs): {log_probs.shape}")
+            log_probs = log_probs.permute(1, 0, 2)
+            # print(f"Shape after concatenation (new log_probs): {log_probs.shape}")
         return STCLoss(log_probs, targets, prob, self.reduction)

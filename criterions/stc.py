@@ -208,7 +208,9 @@ class STC(torch.nn.Module):
             target_map = {}
             for i, t in enumerate(select_idx):
                 target_map[t] = i
-
+            
+            print(target_map)
+            
             select_idx = torch.IntTensor(select_idx).to(log_probs.device)
             log_probs = log_probs.index_select(2, select_idx)
             targets = [[target_map[t] for t in target] for target in targets]

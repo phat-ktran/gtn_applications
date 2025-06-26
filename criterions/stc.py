@@ -203,14 +203,12 @@ class STC(torch.nn.Module):
 
             # select only the tokens present in current batch
             select_idx = [STC_BLANK_IDX] + list(
-                set([t for target in targets for t in target])
+                set([t.item() for target in targets for t in target])
             )
             target_map = {}
             for i, t in enumerate(select_idx):
                 target_map[t] = i
-            
-            print(target_map)
-            
+                        
             select_idx = torch.IntTensor(select_idx).to(log_probs.device)
             log_probs = log_probs.index_select(2, select_idx)
             targets = [[target_map[t] for t in target] for target in targets]

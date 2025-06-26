@@ -70,7 +70,8 @@ class STCLossFunction(torch.autograd.Function):
         C = Cstar // 2
         
         
-        print(targets)
+        print(len(targets))
+        print(B)
         def process(b):
             # create emission graph
             g_emissions = gtn.linear_graph(

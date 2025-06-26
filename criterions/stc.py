@@ -134,7 +134,10 @@ class STCLossFunction(torch.autograd.Function):
             input_grad[b] = torch.from_numpy(grad).view(1, T, C) * scales[b]
             
         print("Processing backward pass for each batch element...")
-        gtn.parallel_for(process, range(B))
+        # Using a for loop instead of gtn.parallel_for
+        # gtn.parallel_for(process, range(B))
+        for b in range(B):
+            process(b)
 
         print("Gradient computation completed for all batch elements.")
         if grad_output.is_cuda:

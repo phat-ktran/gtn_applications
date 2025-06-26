@@ -126,7 +126,9 @@ class STCLossFunction(torch.autograd.Function):
         print(f"Gradient output shape: {grad_output.shape}")
         
         def process(b):
+            print(f"Processing batch element {b} during backward pass.")
             gtn.backward(losses[b], False)
+            print(f"Batch element {b}: Loss graph backward pass completed.")
             emissions = emissions_graphs[b]
             grad = emissions.grad().weights_to_numpy()
             input_grad[b] = torch.from_numpy(grad).view(1, T, C) * scales[b]

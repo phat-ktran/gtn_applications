@@ -118,18 +118,27 @@ class STCLossFunction(torch.autograd.Function):
         losses, scales, emissions_graphs, in_shape = ctx.auxiliary_data
         B, T, C = in_shape
         input_grad = torch.empty((B, T, C))
-
+        
+        print("Backward pass initiated.")
+        print(f"Batch size (B): {B}")
+        print(f"Time steps (T): {T}")
+        print(f"Alphabet size (C): {C}")
+        print(f"Gradient output shape: {grad_output.shape}")
+        
         def process(b):
             gtn.backward(losses[b], False)
             emissions = emissions_graphs[b]
             grad = emissions.grad().weights_to_numpy()
             input_grad[b] = torch.from_numpy(grad).view(1, T, C) * scales[b]
-
+            
+        print("Processing backward pass for each batch element...")
         gtn.parallel_for(process, range(B))
 
+        print("Gradient computation completed for all batch elements.")
         if grad_output.is_cuda:
             input_grad = input_grad.cuda()
         input_grad *= grad_output / B
+        print("Gradient adjustment completed.")
 
         return (
             input_grad,

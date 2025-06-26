@@ -80,40 +80,18 @@ class BatchSortedSampler(torch.utils.data.Sampler):
         return self.length
 
 
-# def padding_collate(samples):
-#     inputs, targets = zip(*samples)
+def padding_collate(samples):
+    inputs, targets = zip(*samples)
 
-#     # collate inputs:
-#     h = inputs[0].shape[1]
-#     max_input_len = max(ip.shape[2] for ip in inputs)
-#     batch_inputs = torch.zeros((len(inputs), inputs[0].shape[1], max_input_len))
-#     for e, ip in enumerate(inputs):
-#         batch_inputs[e, :, : ip.shape[2]] = ip
-
-#     return batch_inputs, targets
-
-
-def padding_collate(batch):
-    inputs, targets = zip(*batch)
-    batch_size = len(inputs)
-    channels, height = (
-        inputs[0].shape[0],
-        inputs[0].shape[1],
-    )  # e.g., [3, 64] or [1, 64]
-    max_width = max(
-        ip.shape[2] for ip in inputs
-    )  # Should be 880 if load_image is correct
-    batch_inputs = torch.zeros(batch_size, channels, height, max_width)
+    # collate inputs:
+    h = inputs[0].shape[1]
+    max_input_len = max(ip.shape[2] for ip in inputs)
+    batch_inputs = torch.zeros((len(inputs), inputs[0].shape[1], max_input_len))
     for e, ip in enumerate(inputs):
-        w = ip.shape[2]
-        batch_inputs[e, :, :, :w] = ip
-    max_target_length = max(t.shape[0] for t in targets)
-    batch_targets = torch.zeros(batch_size, max_target_length, dtype=torch.long)
-    for e, t in enumerate(targets):
-        length = t.shape[0]
-        batch_targets[e, :length] = t
-    return batch_inputs, batch_targets
+        batch_inputs[e, :, : ip.shape[2]] = ip
 
+    return batch_inputs, targets
+    
 
 @dataclass
 class Meters:

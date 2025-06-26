@@ -105,6 +105,7 @@ def load_image(example):
         padded_img = PIL.Image.new('RGB', (target_width, new_height), color=(255, 255, 255))
         padded_img.paste(img, (0, 0))
         img = padded_img
+    img = img.convert('L')  # Convert to 1-channel grayscale
     return img
 
 

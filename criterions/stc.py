@@ -69,9 +69,6 @@ class STCLossFunction(torch.autograd.Function):
         losses, scales, emissions_graphs = [None] * B, [None] * B, [None] * B
         C = Cstar // 2
         
-        
-        print(len(targets))
-        print(B)
         def process(b):
             # create emission graph
             g_emissions = gtn.linear_graph(
